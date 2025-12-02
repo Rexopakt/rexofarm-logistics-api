@@ -22,7 +22,7 @@ FROM node:18-alpine AS production
 
 WORKDIR /var/www/app
 
-# Install git for production dependencies
+# Install git for production dependencie
 RUN apk add --no-cache git
 
 # Copy package files
