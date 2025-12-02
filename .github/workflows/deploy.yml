@@ -76,15 +76,17 @@ jobs:
               COMPOSE_CMD="docker-compose"
             fi
 
-            # Stop old containers
-            $COMPOSE_CMD down || true
+            # Stop only the API container
+            $COMPOSE_CMD stop app || true
+            $COMPOSE_CMD rm -f app || true
 
-            # Pull latest image and deploy
-            echo "Pulling latest image from GHCR..."
-            $COMPOSE_CMD pull
+            # Pull latest API image
+            echo "Pulling latest API image from GHCR..."
+            $COMPOSE_CMD pull app
 
-            echo "Starting containers..."
-            $COMPOSE_CMD up -d --remove-orphans
+            # Start only the API container
+            echo "Starting API container..."
+            $COMPOSE_CMD up -d app
 
             # Cleanup
             docker image prune -f
