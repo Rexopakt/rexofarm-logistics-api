@@ -35,8 +35,8 @@ RUN npm install --quiet --only=production --legacy-peer-deps && npm cache clean 
 COPY --from=builder /var/www/app/dist ./dist
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
-USER nestjs
+#RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+#USER nestjs
 
 EXPOSE 3000
 
