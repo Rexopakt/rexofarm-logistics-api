@@ -2,7 +2,7 @@ name: Deploy Logistics API
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   
 
 jobs:
