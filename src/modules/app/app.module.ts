@@ -23,6 +23,7 @@ import AppService from './app.service';
 			useNewUrlParser: true,
 			useUnifiedTopology: true,
 			useFindAndModify: true,
+			retryWrites: false,
 		}),
 		RedisModule.forRootAsync({
 			useFactory: (cfg: ConfigService) => ({
