@@ -1,0 +1,92 @@
+name: Deploy Logistics API
+
+on:
+  push:
+    branches: [master]
+  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/rexopakt/rexofarm-logistics-api:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            DEPLOY_PATH="/home/deployer/rexofarm-logistics-api"
+            
+            # Create deploy directory
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+            
+            # Download docker-compose.yml from main branch
+            echo "Downloading docker-compose.yml..."
+            curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o docker-compose.yml \
+                 -L https://api.github.com/repos/${{ github.repository }}/contents/docker-compose.yml?ref=${{ github.ref_name }}
+            
+            # Create .env file
+            cat > .env << EOF
+            SERVER_PORT=3000
+
+            MONGO_ROOT_USERNAME=${{ secrets.MONGO_ROOT_USERNAME }}
+            MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}
+
+            MONGODB_URL=mongodb://${{ secrets.MONGO_ROOT_USERNAME }}:${{ secrets.MONGO_ROOT_PASSWORD }}@rexofarm-logistics-mongodb:27017/rexofarm-logistics?authSource=admin
+
+            REDIS_URL=redis://rexofarm-logistics-redis:6379
+
+            SECRET=${{ secrets.JWT_SECRET }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=7d
+            EOF
+
+            # Docker login on server
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Use docker compose (v2 recommended)
+            if command -v docker compose &> /dev/null; then
+              COMPOSE_CMD="docker compose"
+            else
+              COMPOSE_CMD="docker-compose"
+            fi
+
+            # Stop old containers
+            $COMPOSE_CMD down || true
+
+            # Pull latest image and deploy
+            echo "Pulling latest image from GHCR..."
+            $COMPOSE_CMD pull
+
+            echo "Starting containers..."
+            $COMPOSE_CMD up -d --remove-orphans
+
+            # Cleanup
+            docker image prune -f
+
+            echo "Deployment completed successfully!"

@@ -1,32 +1,54 @@
-version: "3"
+version: "3.8"
 services:
   app:
-    build:
-      context: .
-      dockerfile: ./docker/App.Dockerfile
-    container_name: app
-    volumes:
-      - ./:/var/www/app:cached
-      - /var/www/app/node_modules # anonymous volume for node_modules only
-    restart: always
+    image: ghcr.io/rexopakt/rexofarm-logistics-api:latest
+    container_name: rexofarm-logistics-api
+    env_file:
+      - .env
+    restart: unless-stopped
     ports:
-      - 3000:3000
+      - "3000:3000"
     depends_on:
-      - mongodb
-      - redis
-    links:
-      - mongodb
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - logistics-network
 
   mongodb:
-    container_name: mongodb
-    image: mongo:latest
-    restart: always
-    ports:
-      - 27017:27017
+    container_name: rexofarm-logistics-mongodb
+    image: mongo:6
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - logistics_mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - logistics-network
 
   redis:
-    image: redis:6
-    restart: always
-    ports:
-      - 6379:6379
+    container_name: rexofarm-logistics-redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - logistics_redis_data:/data
+    networks:
+      - logistics-network
+
+volumes:
+  logistics_mongodb_data:
+  logistics_redis_data:
+
+networks:
+  logistics-network:
+    driver: bridge

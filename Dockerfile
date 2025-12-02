@@ -9,7 +9,7 @@ RUN apk add --no-cache git
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm ci --quiet --legacy-peer-deps
+RUN npm install --quiet --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -29,7 +29,7 @@ RUN apk add --no-cache git
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --quiet --only=production --legacy-peer-deps && npm cache clean --force
+RUN npm install --quiet --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /var/www/app/dist ./dist
